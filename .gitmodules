@@ -1,0 +1,6 @@
+[submodule "extdeps/raylib"]
+	path = extdeps/raylib
+	url = https://github.com/raysan5/raylib.git
+[submodule "extdeps/json"]
+	path = extdeps/json
+	url = https://github.com/nlohmann/json.git
