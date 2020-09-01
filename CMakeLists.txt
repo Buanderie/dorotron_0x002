@@ -16,4 +16,4 @@ file( GLOB_RECURSE THT_SRC ./src/*.cc )
 
 add_executable( dorotron_002 ${THT_SRC} )
 add_dependencies( dorotron_002 raylib )
-target_link_libraries( dorotron_002 pthread raylib curses )
+target_link_libraries( dorotron_002 pthread raylib )

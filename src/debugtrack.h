@@ -1,7 +1,6 @@
 #pragma once
 
 #include "track.h"
-#include <curses.h>
 
 class DebugTrack : public Track
 {
