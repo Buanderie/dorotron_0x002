@@ -1,10 +1,13 @@
 #pragma once
 
+#include <chrono>
+
 #include "parameterizable.h"
 
 class StepSequencer;
 class Track : public Parameterizable
 {
+
 public:
     Track( StepSequencer* parent = nullptr )
         :_parent(parent)
@@ -17,6 +20,11 @@ public:
     virtual ~Track()
     {
 
+    }
+
+    virtual int active_step_idx()
+    {
+        return -1;
     }
 
     int n_steps()
@@ -40,5 +48,13 @@ protected:
 
     }
     //
+
+    double getMilliseconds()
+    {
+        double milliseconds_since_epoch =
+                std::chrono::high_resolution_clock::now().time_since_epoch() /
+                std::chrono::nanoseconds(1);
+        return milliseconds_since_epoch / 1000000.0;
+    }
 
 };
