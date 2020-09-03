@@ -14,11 +14,11 @@ int main( int argc, char** argv )
     Track * dt0 = new DebugTrack(&sequencer);
     sequencer.addTrack(dt0);
 
-    //    dt0->set_property("steps", 4);
+    dt0->set_property("steps", 8);
 
 //    Track * dt1 = new DebugTrack(&sequencer);
 //    sequencer.addTrack(dt1);
-//    dt0->set_property("steps", 4);
+//    dt1->set_property("steps", 17);
 
 
     SequencerGUI gui( &sequencer );
