@@ -1,5 +1,10 @@
 #pragma once
 
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+using namespace std;
+
 #include "stepsequencer.h"
 
 #include "raylib.h"
@@ -20,12 +25,12 @@ class SequencerGUI
     } TrackRenderingItem;
 
 public:
-    SequencerGUI( StepSequencer* seq = nullptr, int width = 1024, int height = 768 )
+    SequencerGUI( StepSequencer* seq = nullptr, int width = 1280, int height = 720 )
         :_seq(seq), _width(width), _height(height)
     {
         init();
-        _targetWidth = 800;
-        _targetHeight = 800;
+        _targetWidth = 1024;
+        _targetHeight = 1024;
         _active_idx = 0;
         _camera = { { 0.0f, 9.0f, 11.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 40.0f, 0 };
     }
@@ -40,17 +45,28 @@ public:
         SetConfigFlags(FLAG_MSAA_4X_HINT);
         InitWindow(_width, _height, "dorotron_0x002" );
         SetTargetFPS(60);
-//        ToggleFullscreen();
+        _font = LoadFont("../resources/MODENINE.TTF");
 
-        shaders[0] = LoadShader(0, TextFormat("cross_hatching.fs", GLSL_VERSION));
+
+        _blurredTarget = LoadRenderTexture(_width, _height);
+        _clearTarget = LoadRenderTexture(_width, _height);
+
+        shaders[0] = LoadShader(0, TextFormat("../resources/pute.fs", GLSL_VERSION));
+        shaders[1] = LoadShader(0, TextFormat("../resources/blur.fs", GLSL_VERSION));
 
         while (!WindowShouldClose())
         {
 
-            if (IsKeyDown(KEY_UP)) _active_idx = min( _active_idx + 1, (ssize_t)_seq->tracks().size() - 1 );
-            if (IsKeyDown(KEY_DOWN)) _active_idx = max( _active_idx - 1, (ssize_t)0 );
+            if (IsKeyPressed(KEY_UP)) _active_idx = min( _active_idx + 1, (ssize_t)_seq->tracks().size() - 1 );
+            if (IsKeyPressed(KEY_DOWN)) _active_idx = max( _active_idx - 1, (ssize_t)0 );
+
+            if( IsKeyPressed(KEY_SPACE) )
+            {
+                _seq->tracks()[ _active_idx ]->trigger();
+            }
 
             BeginDrawing();
+            ClearBackground( CLITERAL(Color){ 0, 0, 0, 0 } );  // Clear texture background
 
             checkTracksBeforeRendering();
             int r = 50;
@@ -63,11 +79,11 @@ public:
 
                 if( i == _active_idx )
                 {
-                    renderTrack(t, 400, 1.0);
+                    renderTrack(t, 380, 1.0);
                 }
                 else
                 {
-                    renderTrack(t, 400);
+                    renderTrack(t, 380, 0.3);
                 }
                 r += 50;
                 //                EndShaderMode();
@@ -75,21 +91,53 @@ public:
                 i = i+1;
             }
 
+            // Blurred shit
+            BeginTextureMode( _blurredTarget );
+            ClearBackground( CLITERAL(Color){ 10, 10, 10, 255 } );  // Clear texture background
             BeginMode3D(_camera);
-            ClearBackground( CLITERAL(Color){ 0, 0, 0, 0 } );  // Clear texture background
-            //            DrawGrid(10, 1.0f); // Draw a grid
-            double y_step = 1.0;
-            double y = -6.7 + (_tritems.size() - (_active_idx)) * y_step;
+            double y_step = 1.5;
+            double y = 1.0;
+            for( int i = 0; i < _active_idx; ++i )
+            {
+                y -= y_step;
+            }
+            int j = 0;
             for( auto t : _seq->tracks() )
             {
-                Vector3 position = { 0.0f, y, 0.0f };
-                DrawModel(_tritems[t].model, position, 1.0f, WHITE);
+                if( j != _active_idx )
+                {
+                    Vector3 position = { 0.0f, y, 0.0f };
+                    _tritems[t].model.materials[0].shader = shaders[0];
+                    DrawModel(_tritems[t].model, position, 1.0f, WHITE);
+                }
                 y += y_step;
+                j++;
             }
-            //            DrawBillboard( _camera, _tritems[ _seq->tracks()[0] ].target.texture, (Vector3){0,0,0}, 10.0, WHITE );
             EndMode3D();
+            EndTextureMode();
 
-                        DrawFPS(0,0);
+            // Not blurred shit
+            BeginTextureMode( _clearTarget );
+            ClearBackground( CLITERAL(Color){ 0, 0, 0, 0 } );  // Clear texture background
+            BeginMode3D(_camera);
+            y = 1.0;
+            Vector3 position = { 0.0f, y, 0.0f };
+            _tritems[ _seq->tracks()[_active_idx] ].model.materials[0].shader = shaders[0];
+            DrawModel(_tritems[ _seq->tracks()[_active_idx] ].model, position, 1.0f, WHITE);
+            EndMode3D();
+            EndTextureMode();
+            //
+
+            // Draw blurred shit
+            BeginShaderMode( shaders[1] );
+            DrawTextureRec(_blurredTarget.texture, (Rectangle){ 0, 0, _blurredTarget.texture.width, -_blurredTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);
+            EndShaderMode();
+            DrawTextureRec( _clearTarget.texture, (Rectangle){ 0, 0, _clearTarget.texture.width, -_clearTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);
+
+            DrawRectangle( 0, GetScreenHeight() - 40, GetScreenWidth(), 40, DARKGRAY );
+            stringstream sstr;
+            sstr << "CHHANEL_0x" << std::setfill('0') << std::setw(2) << hex << _active_idx;
+            DrawTextEx(_font, sstr.str().c_str(), (Vector2){ GetScreenWidth() / 2 - 120, _height - 33.0f }, _font.baseSize * 1.0, 2, RAYWHITE);
 
             EndDrawing();
 
@@ -109,6 +157,7 @@ private:
     ssize_t _active_idx;
 
     Shader shaders[16] = { 0 };
+    Font _font;
 
     std::map< Track*, TrackRenderingItem > _tritems;
     void checkTracksBeforeRendering()
@@ -125,6 +174,9 @@ private:
             }
         }
     }
+
+    RenderTexture2D _blurredTarget;
+    RenderTexture2D _clearTarget;
 
     void init()
     {
@@ -148,22 +200,23 @@ private:
 
         for( int i = 0; i < t->n_steps(); ++i )
         {
-            //            rlRotatef(30.0, 15.0f, 0.0f, 0.0f);
-            Color c = LIGHTGRAY;
+            Color c = Fade(LIGHTGRAY, transp_value);
             Color c2 = DARKBLUE;
 
-            if( i == t->active_step_idx() )
-                c = RED;
+            if( t->step_state(i) == Track::STEP_IDLE )
+                c = Fade( BLACK, transp_value * 0.3 );
+            //                c = Fade( RAYWHITE, transp_value );
 
-            DrawRing( (Vector2){_targetWidth/2, _targetHeight/2}, radius - circle_width, radius, cur_angle, cur_angle + s_arc_len, 250, Fade(c, transp_value));
-            for( double xx = -0.01; xx < 0.01; xx += 0.05 )
-                for( double yy = -1.1; yy < 1.1; yy += 0.05 )
-                    DrawRingLines( (Vector2){_targetWidth/2 + xx, _targetHeight/2 + yy }, radius - circle_width, radius, cur_angle, cur_angle + s_arc_len, 0, Fade(c2, transp_value) );
+            else if( t->step_state(i) == Track::STEP_ACTIVE )
+                c = Fade( RAYWHITE, transp_value );
+
+            if( i == t->active_step_idx() )
+                c = Fade(RED, transp_value * 2.0);
+
+            DrawRing( (Vector2){_targetWidth/2, _targetHeight/2}, radius - circle_width, radius, cur_angle, cur_angle + s_arc_len, 250, c);
 
             cur_angle += s_arc_len + (double)space_width;
         }
-
-        // DrawRing( (Vector2){1280/2, 720/2}, 100, 120, 0, 270, 0, Fade(BLACK, 0.5));
     }
 
 protected:

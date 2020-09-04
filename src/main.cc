@@ -13,12 +13,12 @@ int main( int argc, char** argv )
     StepSequencer sequencer;
     sequencer.start();
 
-    for( int k = 0; k < 8; ++k )
-    {
-        Track * dt0 = new DebugTrack(&sequencer);
-        sequencer.addTrack(dt0);
-        dt0->set_property("steps", 32);
-    }
+//    for( int k = 0; k < 32; ++k )
+//    {
+//        Track * dt0 = new DebugTrack(&sequencer);
+//        sequencer.addTrack(dt0);
+//        dt0->set_property("steps", 16);
+//    }
 
 //    Track * dt1 = new DebugTrack(&sequencer);
 //    sequencer.addTrack(dt1);

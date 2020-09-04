@@ -26,7 +26,7 @@ public:
 
         double t = getMilliseconds();
         double dt = t - _last_t;
-        double bpm = 60.0 / (dt / 1000.0);
+        double bpm = (60.0 / (dt / 1000.0)) / 4.0;
         cerr << "***** dt=" << dt << " bpm=" << bpm << endl;
         int i = istep % n_steps();
         _active_step_idx = i;
