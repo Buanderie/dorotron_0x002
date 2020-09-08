@@ -7,11 +7,11 @@
 #include <unistd.h>
 
 #include "track.h"
-#include "channel.h"
+#include "channelwav.h"
 
 #include "parameterizable.h"
 
-#define NUM_CHANNELS 8
+#define NUM_CHANNELS 5
 
 class StepSequencer : public Parameterizable
 {
@@ -19,9 +19,28 @@ public:
     StepSequencer()
         :_running(false), _cur_step(0)
     {
+
+        InitAudioDevice();
+
         for( int k = 0; k < NUM_CHANNELS; ++k )
         {
-            _channels.push_back( nullptr );
+            Channel * c = new ChannelWav();
+            if( k == 0 )
+            {
+                cerr << "OK B" << endl;
+                c->set_property( "file", "../resources/b.wav" );
+            }
+            else if( k == 1 )
+            {
+                cerr << "OK C" << endl;
+                c->set_property( "file", "../resources/kick.wav" );
+            }
+            else
+            {
+                cerr << "OK A" << endl;
+                c->set_property( "file", "../resources/snare.wav" );
+            }
+            _channels.push_back( c );
         }
 
         declare_property( "bpm", 80, [=](nlohmann::json v){
@@ -39,6 +58,9 @@ public:
         for( int k = 0; k < _channels.size(); ++k )
         {
             Track * t = new Track(this);
+            t->add_trigger_callback( [=](){
+                _channels[ k ]->trigger();
+            });
             t->set_property( "steps", property("bar_length").get<double>() * property("num_bars").get<double>() );
             _tracks.push_back( t );
         }
@@ -68,7 +90,7 @@ public:
                         t->step(_cur_step);
                     }
                     _cur_step++;
-                    usleep( (1.0 / bps) * 1000000.0 + 5000 );
+                    usleep( (1.0 / bps) * 1000000.0 );
                 }
             });
         }

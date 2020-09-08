@@ -38,6 +38,18 @@ public:
         return _active_step_idx;
     }
 
+    virtual bool recently_activated( int i )
+    {
+        if( getMilliseconds() - _lastActivationTimestamp <= 100.0 )
+        {
+            if( _lastActivatedIdx >= 0 && _lastActivatedIdx < this->n_steps() && _lastActivatedIdx == i )
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     int n_steps()
     {
         return this->property( "steps" ).get<int>();
@@ -49,17 +61,18 @@ public:
         _active_step_idx = i;
         if( _states[i] == STEP_ACTIVE )
         {
-            cerr << "boom boom" << endl;
+            for( auto& cb : _cbs )
+            {
+                cb();
+            }
         }
     }
 
     virtual void trigger()
     {
         _states[ _active_step_idx ] = STEP_ACTIVE;
-//        if( _states[ _active_step_idx ] == STEP_ACTIVE )
-//        {
-//            cerr << "boom." << endl;
-//        }
+        _lastActivatedIdx = _active_step_idx;
+        _lastActivationTimestamp = getMilliseconds();
     }
 
     virtual StepState step_state( size_t step_idx )
@@ -67,10 +80,16 @@ public:
         return _states[ step_idx ];
     }
 
+    void add_trigger_callback( std::function<void(void)> f )
+    {
+        _cbs.push_back( f );
+    }
+
 private:
 
 protected:
     StepSequencer * _parent;
+    std::vector< std::function<void(void)> > _cbs;
 
     //
     virtual void onNumberOfStepsChanged( int steps )
@@ -91,5 +110,8 @@ protected:
 
     std::vector< Track::StepState > _states;
     int _active_step_idx;
+
+    int _lastActivatedIdx;
+    double _lastActivationTimestamp;
 
 };

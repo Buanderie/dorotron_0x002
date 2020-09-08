@@ -15,6 +15,11 @@ public:
 
     }
 
+    virtual void trigger()
+    {
+
+    }
+
 private:
 
 protected:

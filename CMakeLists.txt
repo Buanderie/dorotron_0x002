@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 # RAYLIB
 add_subdirectory( ${PROJECT_SOURCE_DIR}/extdeps/raylib/ )
 LINK_DIRECTORIES( ${PROJECT_BINARY_DIR}/extdeps/raylib/src/ )
-include_directories( ${PROJECT_SOURCE_DIR}/extdeps/raylib/ )
+include_directories( ${PROJECT_SOURCE_DIR}/extdeps/raylib/src/ )
 
 # JSON
 include_directories( ${PROJECT_SOURCE_DIR}/extdeps/json/single_include/ )

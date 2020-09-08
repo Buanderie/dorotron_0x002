@@ -9,6 +9,7 @@ using namespace std;
 
 #include "raylib.h"
 #include "rlgl.h"
+#include "easings.h"
 
 #if defined(PLATFORM_DESKTOP)
 #define GLSL_VERSION            330
@@ -25,7 +26,7 @@ class SequencerGUI
     } TrackRenderingItem;
 
 public:
-    SequencerGUI( StepSequencer* seq = nullptr, int width = 1280, int height = 720 )
+    SequencerGUI( StepSequencer* seq = nullptr, int width = 1024, int height = 768 )
         :_seq(seq), _width(width), _height(height)
     {
         init();
@@ -42,17 +43,19 @@ public:
 
     void run()
     {
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        // SetConfigFlags(FLAG_MSAA_4X_HINT);
         InitWindow(_width, _height, "dorotron_0x002" );
         SetTargetFPS(60);
         _font = LoadFont("../resources/MODENINE.TTF");
 
 
-        _blurredTarget = LoadRenderTexture(_width, _height);
-        _clearTarget = LoadRenderTexture(_width, _height);
-
+        //        _blurredTarget = LoadRenderTexture(_width, _height);
+        //        _clearTarget = LoadRenderTexture(_width, _height);
         shaders[0] = LoadShader(0, TextFormat("../resources/pute.fs", GLSL_VERSION));
         shaders[1] = LoadShader(0, TextFormat("../resources/blur.fs", GLSL_VERSION));
+
+        _bgColor = CLITERAL(Color){ 50, 50, 50, 255 };
+        _primaryColor = DARKBLUE;
 
         while (!WindowShouldClose())
         {
@@ -66,78 +69,29 @@ public:
             }
 
             BeginDrawing();
-            ClearBackground( CLITERAL(Color){ 0, 0, 0, 0 } );  // Clear texture background
+            ClearBackground( _bgColor );  // Clear texture background
 
-            checkTracksBeforeRendering();
-            int r = 50;
+            int r = 120;
             int i = 0;
             for( auto t : _seq->tracks() )
             {
-                BeginTextureMode(_tritems[t].target);
-                ClearBackground( CLITERAL(Color){ 245, 245, 245, 0 } );  // Clear texture background
-                //                BeginShaderMode(shaders[0]);
-
                 if( i == _active_idx )
                 {
-                    renderTrack(t, 380, 1.0);
+                    renderTrack(t, r, true);
                 }
                 else
                 {
-                    renderTrack(t, 380, 0.3);
+                    renderTrack(t, r, false);
                 }
                 r += 50;
-                //                EndShaderMode();
-                EndTextureMode();
                 i = i+1;
             }
-
-            // Blurred shit
-            BeginTextureMode( _blurredTarget );
-            ClearBackground( CLITERAL(Color){ 10, 10, 10, 255 } );  // Clear texture background
-            BeginMode3D(_camera);
-            double y_step = 1.5;
-            double y = 1.0;
-            for( int i = 0; i < _active_idx; ++i )
-            {
-                y -= y_step;
-            }
-            int j = 0;
-            for( auto t : _seq->tracks() )
-            {
-                if( j != _active_idx )
-                {
-                    Vector3 position = { 0.0f, y, 0.0f };
-                    _tritems[t].model.materials[0].shader = shaders[0];
-                    DrawModel(_tritems[t].model, position, 1.0f, WHITE);
-                }
-                y += y_step;
-                j++;
-            }
-            EndMode3D();
-            EndTextureMode();
-
-            // Not blurred shit
-            BeginTextureMode( _clearTarget );
-            ClearBackground( CLITERAL(Color){ 0, 0, 0, 0 } );  // Clear texture background
-            BeginMode3D(_camera);
-            y = 1.0;
-            Vector3 position = { 0.0f, y, 0.0f };
-            _tritems[ _seq->tracks()[_active_idx] ].model.materials[0].shader = shaders[0];
-            DrawModel(_tritems[ _seq->tracks()[_active_idx] ].model, position, 1.0f, WHITE);
-            EndMode3D();
-            EndTextureMode();
-            //
-
-            // Draw blurred shit
-            BeginShaderMode( shaders[1] );
-            DrawTextureRec(_blurredTarget.texture, (Rectangle){ 0, 0, _blurredTarget.texture.width, -_blurredTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);
-            EndShaderMode();
-            DrawTextureRec( _clearTarget.texture, (Rectangle){ 0, 0, _clearTarget.texture.width, -_clearTarget.texture.height }, (Vector2){ 0, 0 }, WHITE);
 
             DrawRectangle( 0, GetScreenHeight() - 40, GetScreenWidth(), 40, DARKGRAY );
             stringstream sstr;
             sstr << "CHHANEL_0x" << std::setfill('0') << std::setw(2) << hex << _active_idx;
             DrawTextEx(_font, sstr.str().c_str(), (Vector2){ GetScreenWidth() / 2 - 120, _height - 33.0f }, _font.baseSize * 1.0, 2, RAYWHITE);
+            DrawFPS(0,0);
 
             EndDrawing();
 
@@ -150,6 +104,9 @@ private:
     int _width;
     int _height;
 
+    Color _bgColor;
+    Color _primaryColor;
+
     Camera _camera;
     int _targetWidth;
     int _targetHeight;
@@ -159,34 +116,39 @@ private:
     Shader shaders[16] = { 0 };
     Font _font;
 
-    std::map< Track*, TrackRenderingItem > _tritems;
-    void checkTracksBeforeRendering()
-    {
-        for( auto t : _seq->tracks() )
-        {
-            if( _tritems.find(t) == _tritems.end() )
-            {
-                TrackRenderingItem tritem;
-                tritem.target = LoadRenderTexture(_targetWidth, _targetHeight);
-                tritem.model = LoadModelFromMesh(GenMeshPlane( 10.0, 10.0, 10, 10 ));
-                tritem.model.materials[0].maps[MAP_DIFFUSE].texture = tritem.target.texture;
-                _tritems.insert( std::make_pair( t, tritem ) );
-            }
-        }
-    }
-
-    RenderTexture2D _blurredTarget;
-    RenderTexture2D _clearTarget;
-
     void init()
     {
 
     }
 
-    void renderTrack( Track* t, double radius, double transp_value = 0.25 )
+    void DrawCircleLinesThick(int centerX, int centerY, float radius, float thickness, Color color)
+    {
+        float thickness_2 = thickness / 2.0f;
+        for( float qq = radius - thickness_2; qq < radius + thickness_2; qq += (thickness / 10.0f) )
+            DrawCircleLines( centerX, centerY, qq, color );
+    }
+
+    double randMToN(double M, double N)
+    {
+        return M + (rand() / ( RAND_MAX / (N-M) ) ) ;
+    }
+
+    Color lighter( Color c, float percentLighter )
+    {
+        float r = (percentLighter / 100.0f);
+        float chibre = (float)(c.r + c.g + c.b) / 3.0f;
+        chibre *= r;
+
+        c.r += chibre;
+        c.g += chibre;
+        c.b += chibre;
+        return c;
+    }
+
+    void renderTrack( Track* t, double radius, bool isTrackSelected )
     {
 
-        double circle_width = 50.0;
+        double circle_width = 30.0;
 
         int nspaces = t->n_steps();
         int space_width = 5;
@@ -195,25 +157,59 @@ private:
         double s_arc_len = (double)rem_arc / (double)(t->n_steps());
         double cur_angle = 0.0;
 
-        for( double qq = radius - circle_width / 2.0 - 1.0; qq < radius - circle_width / 2.0 + 1.0; qq+= 0.1 )
-            DrawCircleLines( _targetWidth/2, _targetHeight/2, qq, Fade(DARKBLUE, transp_value) );
+        if( isTrackSelected )
+        {
+            DrawCircleLinesThick( _width/2, _height/2, radius - circle_width / 2.0, 2.0, RAYWHITE );
+        }
+        else
+        {
+            DrawCircleLinesThick( _width/2, _height/2, radius - circle_width / 2.0, 2.0, _primaryColor );
+        }
 
         for( int i = 0; i < t->n_steps(); ++i )
         {
-            Color c = Fade(LIGHTGRAY, transp_value);
-            Color c2 = DARKBLUE;
 
-            if( t->step_state(i) == Track::STEP_IDLE )
-                c = Fade( BLACK, transp_value * 0.3 );
-            //                c = Fade( RAYWHITE, transp_value );
+            Color c = lighter(_primaryColor, 100.0f);
+            double bgThickness = 4.0;
 
-            else if( t->step_state(i) == Track::STEP_ACTIVE )
-                c = Fade( RAYWHITE, transp_value );
+            double pos_noise_x = 0.0;
+            double pos_noise_y = 0.0;
 
             if( i == t->active_step_idx() )
-                c = Fade(RED, transp_value * 2.0);
+            {
+                pos_noise_x = randMToN( -3.0, 3.0 );
+                pos_noise_y = randMToN( -3.0, 3.0 );
+            }
 
-            DrawRing( (Vector2){_targetWidth/2, _targetHeight/2}, radius - circle_width, radius, cur_angle, cur_angle + s_arc_len, 250, c);
+            if( t->step_state( i ) == Track::STEP_IDLE )
+            {
+                c = _bgColor;
+                bgThickness = 8.0;
+            }
+
+            double cRadius = 10.0;
+            if( t->recently_activated( i ) )
+            {
+                cRadius = 20.0;
+                pos_noise_x *= 1.5;
+                pos_noise_y *= 1.5;
+            }
+
+            double x = cos( (cur_angle * M_PI) / 180.0 ) * (radius - circle_width/2.0) + _width/2;
+            double y = sin( (cur_angle * M_PI) / 180.0 ) * (radius - circle_width/2.0) + _height/2;
+            x += pos_noise_x;
+            y += pos_noise_y;
+
+            DrawCircle( x, y, 10.0, c );
+
+            if( t->active_step_idx() == i )
+            {
+                DrawCircleLinesThick( x, y, cRadius, 4.0, lighter(_primaryColor, 90.0f) );
+            }
+            else
+            {
+                DrawCircleLinesThick( x, y, cRadius, 4.0, _primaryColor );
+            }
 
             cur_angle += s_arc_len + (double)space_width;
         }

@@ -27,7 +27,7 @@ void main()
 {
 	vec2 iResolution = vec2( renderWidth, renderHeight );
     vec2 loc   = fragTexCoord;         // center pixel cooordinate
-    vec2 dir   = vec2( 1.0 / iResolution.x, 0.0 ); // horiz=(1.0, 0.0), vert=(0.0, 1.0)
+    vec2 dir   = vec2( 0.0, 1.0 / iResolution.y ); // horiz=(1.0, 0.0), vert=(0.0, 1.0)
 	vec4 acc   = vec4( 0.0 );                      // accumulator
 	float norm = 0.0;
 	for (int i = -support; i <= support; i++) {
@@ -40,4 +40,3 @@ void main()
     // Output to screen
     finalColor = acc;
 }
-
