@@ -54,7 +54,7 @@ public:
         shaders[0] = LoadShader(0, TextFormat("../resources/pute.fs", GLSL_VERSION));
         shaders[1] = LoadShader(0, TextFormat("../resources/blur.fs", GLSL_VERSION));
 
-        _bgColor = CLITERAL(Color){ 50, 50, 50, 255 };
+        _bgColor = CLITERAL(Color){ 20, 20, 20, 255 };
         _primaryColor = DARKBLUE;
 
         while (!WindowShouldClose())
@@ -89,8 +89,8 @@ public:
 
             DrawRectangle( 0, GetScreenHeight() - 40, GetScreenWidth(), 40, DARKGRAY );
             stringstream sstr;
-            sstr << "CHHANEL_0x" << std::setfill('0') << std::setw(2) << hex << _active_idx;
-            DrawTextEx(_font, sstr.str().c_str(), (Vector2){ GetScreenWidth() / 2 - 120, _height - 33.0f }, _font.baseSize * 1.0, 2, RAYWHITE);
+            sstr << "CHANNEL_0x" << std::setfill('0') << std::setw(2) << hex << _active_idx;
+            DrawTextEx(_font, sstr.str().c_str(), (Vector2){ (float)(GetScreenWidth() / 2 - 120), _height - 33.0f }, _font.baseSize * 1.0, 2, RAYWHITE);
             DrawFPS(0,0);
 
             EndDrawing();
@@ -175,7 +175,7 @@ private:
             double pos_noise_x = 0.0;
             double pos_noise_y = 0.0;
 
-            if( i == t->active_step_idx() )
+            if( t->is_step_current( i ) )
             {
                 pos_noise_x = randMToN( -3.0, 3.0 );
                 pos_noise_y = randMToN( -3.0, 3.0 );
@@ -184,6 +184,10 @@ private:
             if( t->step_state( i ) == Track::STEP_IDLE )
             {
                 c = _bgColor;
+                if( t->is_outside_range( i ) )
+                {
+                    c = Fade( c, 0.2 );
+                }
                 bgThickness = 8.0;
             }
 
@@ -202,14 +206,18 @@ private:
 
             DrawCircle( x, y, 10.0, c );
 
-            if( t->active_step_idx() == i )
+            Color circleColor = _primaryColor;
+            if( t->is_step_active( i ) )
             {
-                DrawCircleLinesThick( x, y, cRadius, 4.0, lighter(_primaryColor, 90.0f) );
+                circleColor = lighter(_primaryColor, 90.0f);
             }
-            else
+
+            if( t->is_outside_range( i ) )
             {
-                DrawCircleLinesThick( x, y, cRadius, 4.0, _primaryColor );
+                circleColor = Fade( circleColor, 0.2 );
             }
+
+            DrawCircleLinesThick( x, y, cRadius, 4.0, circleColor );
 
             cur_angle += s_arc_len + (double)space_width;
         }
